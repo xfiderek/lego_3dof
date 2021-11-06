@@ -13,15 +13,18 @@ using namespace hSensors;
 using namespace hFramework;
 
 const double ticksPerRot = 720.0;
+const double h1Transmission = 54.0 / 24.0;
+const double h2Transmission = -1.0;
 
+// z = 16, x = 14, y = -1
 
 // ikstart
 const float l1 = 11.2;
 const float l2 = 9.72;
-const float l3 = 8;
+const float l3 = 12.4;
 
 const float xOffset = -7.2;
-const float yOffset = 7.2;
+const float yOffset = 0;
 const float zOffset = 5.2;
 
 struct ArmState {
@@ -49,7 +52,7 @@ IkSolutions solveIk(float x, float y, float z) {
     solutions.q1 = atan2(y, x);
     
     // x w ukladzie przegubu 2
-    double x2 = sqrt(x * x + y * y); 
+    double x2 = sqrt(x * x + y * y) - 0.8; 
     double z2 = z - l1;
 
     // promien koncowki w ukladzie pzregubu 2
@@ -115,7 +118,7 @@ int toTicks(double relAngle){
 
 int calibrate(hMotor& mot){
     bool done = false;
-    int step_value = 5;
+    int step_value = 3;
     int desired_ticks;
     while (!done) {
         char c = Serial.getch();
@@ -135,7 +138,7 @@ int calibrate(hMotor& mot){
             desired_ticks = 0;
         }
         }
-        mot.rotRel(desired_ticks, 200, true, INFINITE); //relative rotate 500 encoder ticks left with 20% of power with blocking task
+        mot.rotRel(desired_ticks, 500, false, INFINITE); //relative rotate 500 encoder ticks left with 20% of power with blocking task
         sys.delay(100);
         Serial.printf("\n encoder ctn: %d", mot.getEncoderCnt());
         Serial.printf("\n encoder ctn float: %f", (double) mot.getEncoderCnt());
@@ -168,18 +171,18 @@ private:
         Serial.printf("\n motor offset: %d",motOffset);
 
         Serial.printf("\n absolute angle %f", toAngle((double) (mot->getEncoderCnt()) - motOffset));
-        return toAngle((double) (mot->getEncoderCnt())*trans - motOffset);
+        return toAngle(((double) (mot->getEncoderCnt()) - motOffset) / trans);
     }
 
     static void setMotor(hMotor* mot, int motOffset, double angle, double trans=1.0){
-        double currAngle = getMotor(mot, motOffset);
+        double currAngle = getMotor(mot, motOffset, trans);
         Serial.printf("\n target motor angle: %f \r\n", angle);
         
         Serial.printf("Current motor angle: %f \r\n", currAngle);
 
         double relAngle = pickSmallerDiff(currAngle, angle);
         Serial.printf("relative motor travel angle: %f \r\n", relAngle);
-        mot->rotRel( (int) ((double)toTicks(relAngle) / trans), 200);
+        mot->rotRel( (int) ((double)toTicks(relAngle) * trans), 500, false);
     }
 
 public:
@@ -193,11 +196,11 @@ public:
     }
 
     double getMot1(){
-        return getMotor(mot1, mot1Offset);
+        return getMotor(mot1, mot1Offset, h1Transmission);
     }
 
     double getMot2(){
-        return getMotor(mot2, mot2Offset);
+        return getMotor(mot2, mot2Offset, h2Transmission);
     }
     double getMot3(){
         return getMotor(mot3, mot3Offset);
@@ -205,18 +208,48 @@ public:
 
     void setMot1(double angle){
         Serial.printf("target motor angle in setmot1: %f \r\n", angle);
-        setMotor(mot1, mot1Offset, angle);
+        setMotor(mot1, mot1Offset, angle, h1Transmission);
     }
 
     void setMot2(double angle){
-        setMotor(mot2, mot1Offset, angle);
+        setMotor(mot2, mot2Offset, angle, h2Transmission);
     }
 
     void setMot3(double angle){
-        setMotor(mot3, mot1Offset, angle);
+        setMotor(mot3, mot3Offset, angle);
     }
 
 };
+
+
+void moveCartesian(MotorState& motorState, double x, double y, double z){
+    IkSolutions solutions;
+    ArmState armState;
+    x = x - xOffset;
+    y = y - yOffset;
+    z = z - zOffset;
+    Serial.printf("liczymy IK");
+    try {
+        solutions = solveIk(x, y, z);
+        armState = pickSolution(solutions);
+        Serial.printf("obliczone q1: %f \n", rad2deg(armState.q1));
+        Serial.printf("obliczone q2: %f \n", rad2deg(armState.q2));
+        Serial.printf("obliczone q3: %f \n", rad2deg(armState.q3));
+        motorState.setMot1(rad2deg(armState.q1));
+        sys.delay(1000);
+        motorState.setMot2(rad2deg(armState.q2));
+        sys.delay(1000);
+        motorState.setMot3(rad2deg(armState.q3));
+    }
+    catch (std::range_error) {
+        Serial.printf("\n poza zasiegiem");
+        Serial.printf("\n poza zasiegiem");
+        Serial.printf("\n poza zasiegiem");
+        Serial.printf("\n poza zasiegiem");
+        Serial.printf("\n poza zasiegiem");
+    
+    }
+}
 
 void hMain()
 {   
@@ -233,6 +266,9 @@ void hMain()
     hMot2.setEncoderPolarity(Polarity::Reversed);
     hMot3.setEncoderPolarity(Polarity::Reversed);
 
+    hMot1.rotRel(0, 200, false);
+    hMot2.rotRel(0, 200, false);
+    hMot3.rotRel(0, 200, false);
 
     int hMot1Offset = calibrate(hMot1);
     int hMot2Offset = calibrate(hMot2);
@@ -246,33 +282,45 @@ void hMain()
     
     Serial.printf("Motor value: %f \r\n", motorState.getMot1());
 
-    motorState.setMot1(180.0);
-    Serial.printf("\n\n 180 raeched. Motor value: %f \r\n", motorState.getMot1());
-    sys.delay(5000);
-    motorState.setMot1(-180.0);
+    // motorState.setMot1(180.0);
+    // Serial.printf("\n\n 180 raeched. Motor value: %f \r\n", motorState.getMot1());
+    // sys.delay(5000);
+    // motorState.setMot1(-180.0);
+    while (true) {
+        Serial.printf("\nWpisz wartosci\n");
+        int x = Serial.getch();
+        x = x - 48;
+        int y = Serial.getch();
+        
+        y = y - 48;
+        int z = Serial.getch();
 
-    Serial.printf("Motor value: %f \r\n", motorState.getMot1());
+        z = z - 48;
+
+        // motorState.setMot1(180.0);
+
+        // Serial.getch();
+        // motorState.setMot1(0.0);
+        moveCartesian(motorState, x, y, z);
+        
+        Serial.printf("\n Wpisane x: %d \n", x);
+        Serial.printf("\n Wpisane y: %d \n", y);
+        Serial.printf("\n Wpisane z: %d \n", z);
+        
+
+        Serial.printf("\n potwierdz ze dojechales \n");
+        Serial.getch();
+        sys.delay(1000);
+    }
     
 
 
-    IkSolutions solutions;
-    ArmState armState;
-    double x,y,z;
-    try {
-        solutions = solveIk(x, y, z);
-        armState = pickSolution(solutions);
-        // std::cout << "q1: " << rad2deg(armState.q1) << std::endl;
-        // std::cout << "q2: " << rad2deg(armState.q2) << std::endl;
-        // std::cout << "q3: " << rad2deg(armState.q3) << std::endl << std::endl;
-    }
-    catch (std::range_error) {
-        // std::cout << "chlopie poza zasiegiem" << std::endl;
-    }
+   
 
 
     // calibrate(hMot1);
     // IServo &servo = hMot1.useAsServo(); // enable usage of hMot1 as servo
-    // servo.calibrate(-90, 700, 90, 1500);
+    // servo.calibrate(-90, 500, 90, 1500);
     
     
     // calibrate 
