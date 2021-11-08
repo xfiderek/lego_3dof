@@ -7,4 +7,13 @@ enable_module(hSensors)
 enable_module(hModules)
 enable_module(hROS)
 
-add_hexecutable(myproject main.cpp)
+include_directories(include)
+include_directories(src)
+
+file(GLOB all_src
+     "include/*.h"
+     "src/*.cpp"
+)
+
+
+add_hexecutable(myproject main.cpp ${all_src})
