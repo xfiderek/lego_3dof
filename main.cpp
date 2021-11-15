@@ -11,6 +11,7 @@
 #include <vector>
 #include <vector3.h>
 #include <helpers.h>
+#include <Lego_Touch.h>
 
 using namespace hModules;
 using namespace hSensors;
@@ -47,7 +48,9 @@ struct IkSolutions {
     double q1, q2a, q2b, q3a, q3b;
 };
 
+bool KILLED = false;
 
+void handleLiveFkMode();
 
 double toAngle(int ticks){
     double angle = (double) ticks / ticksPerRot * 360.0;
@@ -136,37 +139,6 @@ ArmState pickSolution(IkSolutions& solutions) {
 
 int toTicks(double relAngle){
     return relAngle / 360 * ticksPerRot;
-}
-
-int calibrate(hMotor& mot){
-    bool done = false;
-    int step_value = 3;
-    int desired_ticks;
-    while (!done) {
-        char c = Serial.getch();
-        switch (c) {
-        case 'z': {
-            desired_ticks = -step_value;
-            break;
-        }
-        case 'x': {
-            desired_ticks = step_value;
-            break;
-        }
-        case 'q': {
-            done = true;
-        }
-        default: {
-            desired_ticks = 0;
-        }
-        }
-        mot.rotRel(desired_ticks, 1000, false, INFINITE); //relative rotate 500 encoder ticks left with 20% of power with blocking task
-        sys.delay(100);
-        Serial.printf("\n encoder ctn: %d", mot.getEncoderCnt());
-        Serial.printf("\n encoder ctn float: %f", (double) mot.getEncoderCnt());
-    }
-    return (double) mot.getEncoderCnt() ;
-    
 }
 
 
@@ -422,6 +394,65 @@ void handleLiveCartesianMode(MotorState& motorState){
         }
     } 
 
+void handleLiveFkMode(){
+     int incr1 = 10;
+     int incr2 = 5;
+     int incr3 = 2;
+
+    Serial.printf("\n\n Sterowanie\n\n");
+    Serial.printf("w -> czlon 2 kierunek dodatni\n");
+    Serial.printf("s -> czlon 2 kierunek ujemny\n");
+    Serial.printf("a -> czlon 1 kierunek dodatni\n");
+    Serial.printf("d -> czlon 1 kierunek ujemny\n");
+    Serial.printf("i -> czlon 3 kierunek dodatni\n");
+    Serial.printf("k -> czlon 3 kierunek ujemny\n");
+    Serial.printf("q -> wyjscie\n\n");
+
+    char c = Serial.getch();
+    
+    while (c != 'q'){
+        switch (c) {
+        case 'w':
+            {
+                hMot2.rotRel(-incr2, 400, false);
+                break;    
+            }
+            
+        case 's':
+            {
+                hMot2.rotRel(incr2, 400, false);
+                break;    
+            }
+
+        case 'a':
+            {
+                hMot1.rotRel(-incr1, 400, false);
+                break;    
+            }
+        
+        case 'd':
+            {
+                hMot1.rotRel(incr1, 400, false);
+                break;    
+            }
+
+        case 'i':
+            {
+                hMot3.rotRel(incr3, 400, false);
+                break;    
+            }
+
+        case 'k':
+            {
+                hMot3.rotRel(-incr3, 400, false);
+                break;    
+            }
+
+        }
+        c = Serial.getch();
+    }
+}
+
 void handleCircleTrajectory(MotorState& motorState){
     Serial.printf("\n\n Wpisz x: \n");
     double x = readSerialDouble();
@@ -459,8 +490,40 @@ void printMenu(){
 
 }
 
+void killSwitchLoop(){
+    hLegoSensor_simple ls(hSens5);
+    Lego_Touch sensor(ls);
+    bool prevIterPressed = false;
+
+    while (true){
+        bool pressed = sensor.isPressed();
+        int stateDelta = pressed - prevIterPressed;
+        
+        if (stateDelta > 0){
+            KILLED = !KILLED;
+            Serial.printf("\n\n killed switch state changed. Current kill switch state: %d \n\n", KILLED);
+        }
+        
+        if (KILLED){
+
+            hMot1.rotAbs(hMot1.getEncoderCnt(), 200, false);
+            hMot2.rotAbs(hMot2.getEncoderCnt(), 200, false);
+            hMot3.rotAbs(hMot3.getEncoderCnt(), 200, false);
+            // hMot1.setPowerLimit(0);
+            // hMot2.setPowerLimit(0);
+            // hMot3.setPowerLimit(0);
+        }
+
+
+        prevIterPressed = pressed;
+        sys.delay(10);        
+    }
+}
+
 void hMain()
 {   
+    sys.taskCreate(killSwitchLoop); // this creates a task that will execute `encoder` concurrently
+
 
     sys.setLogDev(&Serial);
 
@@ -472,14 +535,12 @@ void hMain()
     hMot2.rotRel(0, 200, false);
     hMot3.rotRel(0, 200, false);
     Serial.printf("\n\n");
-    Serial.printf("\n\nCalibrating motor1 \n");
-    int hMot1Offset = calibrate(hMot1);
-
-    Serial.printf("\n\n Calibrating motor2 \n");
-    int hMot2Offset = calibrate(hMot2);
-
-    Serial.printf("\n\n Calibrating motor3 \n");
-    int hMot3Offset = calibrate(hMot3);
+    Serial.printf("\n\nCalibrating motors");
+    
+    handleLiveFkMode();
+    int hMot1Offset = hMot1.getEncoderCnt();
+    int hMot2Offset = hMot2.getEncoderCnt();
+    int hMot3Offset = hMot3.getEncoderCnt();
 
     Serial.printf("\n\n ---All motors calibrated-- \n\n");
 
@@ -509,6 +570,7 @@ void hMain()
             }
         case '4':
             {
+                handleLiveFkMode();
                 break;
             }
         case '5':
