@@ -22,7 +22,7 @@ double readSerialDouble()
 double pickSmallerDiff(double currAngle, double targetAngle){
     double diff = targetAngle - currAngle;
     if (abs(360 - abs(diff)) < abs(diff)) {
-        int sgn = (diff > 0) - (diff < 0) ? 1 : -1;
+        int sgn = (diff > 0) - (diff < 0);
         return - sgn * (360 - abs(diff)); 
     } 
     else {

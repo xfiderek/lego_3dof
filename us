@@ -1,0 +1,124 @@
+#include <hFramework.h>
+#include <DistanceSensor.h>
+
+
+using namespace hModules;
+
+
+int WALL_DISTANCE; // !!!!! OKREŚLIĆ JAKI MA BYĆ DYSTANS OD ŚCIANY, PONIŻEJ KTÓREGO BĘDZIE WYKRYWAĆ ŚCIANĘ !!!!!
+int WD_23; //Odległość od ściany czołowej z czujników Dist_2 i Dist_3
+int ROT_90; // !!!!! OKREŚLIĆ O JAKI % MA SIĘ OBRÓCIĆ KAŻDE Z KÓŁ, ABY POJAZD OBRÓCIŁ SIĘ O 90 STOPNI !!!!! TYLKO DO SKRĘTÓW !!!!!
+int GO; // !!!!! O jaki kąt nalepiej będzie obracać koła, w trakcie jazdy do produ, aby nie wbił się w ścianę, lub przeszkodę umieszczoną na jego przodzie !!!!!
+int KONIEC; // !!!!! Odpowiada za zakończenie programu, musimy przyjąć jaki dystans odczyytany z czujników spowoduje, uznanie wyjścia z labiryntu !!!!!
+
+bool right_is_clear, wall_on_right, front_is_clear, over;
+
+
+void turn_right(int r) // ----- Funkcje ruchu pojazdu -----
+{
+hMot1.setPower(r);
+hMot2.setPower(-r);
+}
+
+
+void turn_left(int r)
+{
+hMot1.setPower(-r);
+hMot2.setPower(r);
+}
+
+
+void stop()
+{
+hMot1.setPower(0);
+hMot2.setPower(0);
+}
+
+
+void forward(int r)
+{
+hMot1.setPower(r);
+hMot2.setPower(r);
+}
+
+
+void backward(int r)
+{
+hMot1.setPower(-r);
+hMot2.setPower(-r);
+} // ---------------------------------
+
+
+void hMain()
+{
+DistanceSensor sens_1(hSens1); // Konfiguracja ultradzwiękowych czujników odległości
+DistanceSensor sens_2(hSens2);
+DistanceSensor sens_3(hSens3);
+DistanceSensor sens_4(hSens4);
+DistanceSensor sens_5(hSens5);
+DistanceSensor sens_6(hSens6);
+
+while (true)
+{
+int dist_1 = sens_1.getDistance(); // Zczytywanie odległości z czujników
+int dist_2 = sens_2.getDistance();
+int dist_3 = sens_3.getDistance();
+int dist_4 = sens_4.getDistance();
+int dist_5 = sens_5.getDistance();
+int dist_6 = sens_6.getDistance();
+
+
+if (dist_5 < WALL_DISTANCE) // Sprawdzenie czy po prawej stronie jest ściana !!!!! UWAGA NA ODPOWIEDNIE CZUJNIKI !!!!!
+wall_on_right = true;
+else
+wall_on_right = false;
+
+
+if (wall_on_right) // Sprawdzenie czy prawa strona jest wolna !!!!! UWAGA NA ODPOWIEDNIE CZUJNIKI !!!!!
+right_is_clear = false;
+else
+right_is_clear = true;
+
+
+if (dist_1 < WALL_DISTANCE and dist_2 < WD_23 and dist_3 < WD_23) //Sprawdzenie czy nie ma ściany z przodu // Może warto by było wziąć pod uwagę sygnał z czujników Dist_2 i Dist_3
+front_is_clear = false;
+else
+front_is_clear = true;
+
+
+if (dist_1 > KONIEC and dist_2 > KONIEC and dist_3 > KONIEC and dist_4 > KONIEC and dist_5 > KONIEC) // Sprawdzenie warunku wyjścia z labiryntu i zakończenia programu
+over = true;
+else
+over = false;
+
+
+//----- Logika Programu -----
+if (not over)
+{
+if (right_is_clear)
+{
+turn_right(ROT_90);
+forward(GO);
+}
+else if (wall_on_right and front_is_clear)
+forward(GO);
+else
+turn_left(ROT);
+}
+else
+stop();
+
+
+// Opracować co w przypadku pojawienia się przeszkody nie będącej ścianą, np. butelki , i centrowanie pojazdu między ściankami
+// Co jeśli ściany nie będą pod kątem 90 stopni?
+// Generalnie to jest jeden problem. Mianowicie skręcanie. Trzeba się zastanowić, co się stanie jeśli ten typ zbuduje labirynt w którym ściany nie będą pod kątem 90 tylko np 135 stopni.
+// Pojawia się wtedy problem skręcania, który moim zdaniem trzeba by było próbować rozwiązać na podstawie sygnałów z czujników. No ale pojawaia się pytanie czy to jest realne biorąc po uwagę fakt, że te
+// czujniki są chujowe jak nieszczęście do czegość takiego. Wiązka z tych czujników potrafi się rozproszyć na byle zagiętym kawałku kartki a co dopiero na śliskich pudełkach kartonowych ...
+
+/* Odnośnie ruchu to moim zdaniem należało by sprawdzić jaki obrót silmika daje przemieszczenie 1 cm. Wtedy bylibyśmy w domu w kwestii centrowania pojazdu między ścianami.
+*/
+
+}
+
+
+}

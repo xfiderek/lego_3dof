@@ -13,6 +13,8 @@
 #include <helpers.h>
 #include <Lego_Touch.h>
 
+#define PI 3.14159265
+
 using namespace hModules;
 using namespace hSensors;
 using namespace hFramework;
@@ -54,7 +56,9 @@ void handleLiveFkMode();
 
 double toAngle(int ticks){
     double angle = (double) ticks / ticksPerRot * 360.0;
-    return ((angle > 180) || (angle < - 180)) ? std::fmod(angle, 180) : angle; // range -180, 180
+    angle = atan2(sin(angle / 180.0 * PI), cos(angle / 180.0 * PI));
+    angle = angle / PI * 180;
+    return angle;
 }
 
 
