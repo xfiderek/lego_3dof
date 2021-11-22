@@ -25,15 +25,15 @@ const double h1Transmission = - 54.0 / 8.0;
 
 const double h2Transmission = - 40.0 / 24.0;
 
-const double h3Transmission = 1.0;
+const double h3Transmission = - 40.0 / 12.0;
 
 // z = 16, x = 14, y = -1
 
 // ikstart
 const double l1 = 14.2;
-const double l2 = 9.633;
+const double l2 = 10.81;
 // const float l3 = 14.7;
-const double l3 = 14.7;
+const double l3 = 11.65;
 
 // const float xOffset = -7.2;
 const double xOffset = 0.0;
@@ -44,6 +44,16 @@ const double zOffset = 5.3;
 
 struct ArmState {
     double q1, q2, q3;
+};
+
+class Vector3v2 {
+public:
+    double x,y,z;
+    Vector3v2(double x, double y, double z){
+        this->x = x;
+        this->y = y;
+        this->z = z;
+    }
 };
 
 struct IkSolutions {
@@ -284,7 +294,7 @@ void handleSimpleCartesianMode(MotorState& motorState){
 
     Serial.printf("\n obecne q1 %f \n", motorState.getMot1());
     Serial.printf("\n obecne q2 %f \n", motorState.getMot2());
-    Serial.printf("\n obecne q3 %f \n", motorState.getMot3());
+    Serial.printf("\n obecne q3 %fVector3(); \n", motorState.getMot3());
     
     Vector3 position = motorState.solveForward();
 
@@ -338,7 +348,7 @@ void handleSimpleFkMode(MotorState& motorState){
 }
 
 void handleLiveCartesianMode(MotorState& motorState){
-    double incr = 0.5;
+    double incr = 0.25;
 
     Serial.printf("\n\n Sterowanie\n\n");
     Serial.printf("w -> os x kierunek dodatni\n");
@@ -397,6 +407,13 @@ void handleLiveCartesianMode(MotorState& motorState){
         c = Serial.getch();
         }
     } 
+
+
+void handleResetJointPosition(){
+    hMot1.rotAbs(0, 400, true);
+    hMot2.rotAbs(0, 400, true);
+    hMot3.rotAbs(0, 400, true);
+}
 
 void handleLiveFkMode(){
      int incr1 = 10;
@@ -457,39 +474,87 @@ void handleLiveFkMode(){
     }
 }
 
-void handleCircleTrajectory(MotorState& motorState){
-    Serial.printf("\n\n Wpisz x: \n");
-    double x = readSerialDouble();
-
-    Serial.printf("\n Wpisz y: \n");
-    double y = readSerialDouble();
+void handlePickAndPlace(MotorState& motorState){
+    double maxZ = 10;
+    double minZ = 1;
 
 
-    Serial.printf("\n Wpisz z: \n");
-    double z = readSerialDouble();
+    std::vector<Vector3v2> positions = {
+        // pick first box
+        Vector3v2(10, 10, maxZ),
+        Vector3v2(10, 10, minZ),
+        Vector3v2(10, 10, maxZ),
+        Vector3v2(10, -10, maxZ),
+        Vector3v2(10, -10, minZ),
+        Vector3v2(10, -10, maxZ),
 
-    Serial.printf("\n Wpisz promien: \n");
-    double radius = readSerialDouble();
+        // pick second box
+        Vector3v2(-10, 10, maxZ),
+        Vector3v2(-10, 10, minZ),
+        Vector3v2(-10, 10, maxZ),
+        Vector3v2(10, 10, maxZ),
+        Vector3v2(10, 10, minZ),
+        Vector3v2(10, 10, maxZ),
+
+        // pick third box
+        Vector3v2(-10, -10, maxZ),
+        Vector3v2(-10, -10, minZ),
+        Vector3v2(-10, -10, maxZ),
+        Vector3v2(-10, 10, maxZ),
+        Vector3v2(-10, 10, minZ),
+        Vector3v2(-10, 10, maxZ),
+
+        // pick first box again
+        Vector3v2(10, -10, maxZ),
+        Vector3v2(10, -10, minZ),
+        Vector3v2(10, -10, maxZ),
+        Vector3v2(-10, -10, maxZ),
+        Vector3v2(-10, -10, minZ),
+        Vector3v2(-10, -10, maxZ)
+    };
+
+    for (int i = 0; i < positions.size(); i++){
+        Vector3v2 target = positions.at(i);
+        motorState.moveCartesian(target.x, target.y, target.z);
+        if (i != 0 && (i - 1) % 3 == 0){
+            sys.delay(4000);
+        }
+    }
+}
+
+// void handleCircleTrajectory(MotorState& motorState){
+//     Serial.printf("\n\n Wpisz x: \n");
+//     double x = readSerialDouble();
+
+//     Serial.printf("\n Wpisz y: \n");
+//     double y = readSerialDouble();
+
+
+//     Serial.printf("\n Wpisz z: \n");
+//     double z = readSerialDouble();
+
+//     Serial.printf("\n Wpisz promien: \n");
+//     double radius = readSerialDouble();
 
     
-    Serial.printf("\n Wpisane x: %f \n", x);
-    Serial.printf("\n Wpisane y: %f \n", y);
-    Serial.printf("\n Wpisane z: %f \n", z);
-    Serial.printf("\n Wpisany promien: %f \n\n", radius);
+//     Serial.printf("\n Wpisane x: %f \n", x);
+//     Serial.printf("\n Wpisane y: %f \n", y);
+//     Serial.printf("\n Wpisane z: %f \n", z);
+//     Serial.printf("\n Wpisany promien: %f \n\n", radius);
 
-    std::vector<Vector3> points;
-    // circleFactory(x, y, z, radius, points);
+//     std::vector<Vector3> points;
+//     // circleFactory(x, y, z, radius, points);
 
-    // for (auto point: points){
-    //     motorState.moveCartesian(point.x, point.y, point.z, 100);
-    // }
-}
+//     // for (auto point: points){
+//     //     motorState.moveCartesian(point.x, point.y, point.z, 100);
+//     // }
+// }
 
 void printMenu(){
     Serial.printf("\n 1 - simple ik \n 2 - simple fk \n");
     Serial.printf("3 - live ik \n");
     Serial.printf("4 - live fk \n");
-    Serial.printf("5 - narysuj kolko \n");
+    Serial.printf("5 - pick and place \n");
     Serial.printf("\n");
 
 }
@@ -529,6 +594,7 @@ void hMain()
     sys.taskCreate(killSwitchLoop); // this creates a task that will execute `encoder` concurrently
 
 
+
     sys.setLogDev(&Serial);
 
     hMot1.setEncoderPolarity(Polarity::Reversed);
@@ -551,7 +617,7 @@ void hMain()
     MotorState motorState(&hMot1, &hMot2, &hMot3, hMot1Offset, hMot2Offset, hMot3Offset);
     
 
-    while (true){
+    while (true) {
         printMenu();
         char c = Serial.getch();
         switch (c) {
@@ -579,13 +645,14 @@ void hMain()
             }
         case '5':
             {
-                handleCircleTrajectory(motorState);
+                handlePickAndPlace(motorState);
                 break;
             }
-
-
-
-
+        case '6':
+            {
+                handleResetJointPosition();
+                break;
+            }
         }
     }
     
