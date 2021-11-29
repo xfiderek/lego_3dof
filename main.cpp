@@ -32,14 +32,15 @@ const double h3Transmission = - 40.0 / 12.0;
 // ikstart
 const double l1 = 14.2;
 const double l2 = 10.81;
-// const float l3 = 14.7;
-const double l3 = 11.65;
+// const double l3 = 11.65; // chwytak
+const double l3 = 14.895; // pisak
+
 
 // const float xOffset = -7.2;
-const double xOffset = 0.0;
+const double xOffset = -7*0.8;
 const double wyosiowanie12 = 2.4;
 
-const double yOffset = 0;
+const double yOffset = 11*0.8;
 const double zOffset = 5.3;
 
 struct ArmState {
@@ -201,7 +202,7 @@ public:
         return getMotor(mot2, mot2Offset, h2Transmission);
     }
     double getMot3(){
-        return getMotor(mot3, mot3Offset);
+        return getMotor(mot3, mot3Offset, h3Transmission);
     }
 
     void setMot1(double angle){
@@ -348,7 +349,7 @@ void handleSimpleFkMode(MotorState& motorState){
 }
 
 void handleLiveCartesianMode(MotorState& motorState){
-    double incr = 0.25;
+    double incr = 0.5;
 
     Serial.printf("\n\n Sterowanie\n\n");
     Serial.printf("w -> os x kierunek dodatni\n");
@@ -575,9 +576,9 @@ void killSwitchLoop(){
         
         if (KILLED){
 
-            hMot1.rotAbs(hMot1.getEncoderCnt(), 200, false);
-            hMot2.rotAbs(hMot2.getEncoderCnt(), 200, false);
-            hMot3.rotAbs(hMot3.getEncoderCnt(), 200, false);
+            hMot1.rotAbs(hMot1.getEncoderCnt(), 1000, false);
+            hMot2.rotAbs(hMot2.getEncoderCnt(), 1000, false);
+            hMot3.rotAbs(hMot3.getEncoderCnt(), 1000, false);
             // hMot1.setPowerLimit(0);
             // hMot2.setPowerLimit(0);
             // hMot3.setPowerLimit(0);
