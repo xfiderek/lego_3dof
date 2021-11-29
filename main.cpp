@@ -32,8 +32,8 @@ const double h3Transmission = - 40.0 / 12.0;
 // ikstart
 const double l1 = 14.2;
 const double l2 = 10.81;
-// const double l3 = 11.65; // chwytak
-const double l3 = 14.895; // pisak
+const double l3 = 11.65; // chwytak
+// const double l3 = 14.895; // pisak
 
 
 // const float xOffset = -7.2;
@@ -181,7 +181,7 @@ private:
 
         double relAngle = pickSmallerDiff(currAngle, angle);
         // Serial.printf("relative motor travel angle: %f \r\n", relAngle);
-        mot->rotRel( (int) ((double)toTicks(relAngle) * trans), 500, false);
+        mot->rotRel( (int) ((double)toTicks(relAngle) * trans), 900, false);
     }
 
 public:
@@ -345,7 +345,7 @@ void handleSimpleFkMode(MotorState& motorState){
     
 
     Serial.printf("\n potwierdz ze dojechales \n");
-    Serial.getch();
+    Serial.getch();ii
 }
 
 void handleLiveCartesianMode(MotorState& motorState){
